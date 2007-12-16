@@ -6,7 +6,7 @@
 
 Name:           avalon-%{short_name}
 Version:        4.2.0
-Release:        %mkrel 1.3
+Release:        %mkrel 1.4
 Epoch:          0
 Summary:        Java components interfaces
 License:        Apache License
@@ -23,7 +23,7 @@ BuildRequires:  ant-junit
 BuildRequires:  avalon-logkit
 %endif
 BuildRequires:  java-javadoc
-BuildRequires:  jpackage-utils >= 0:1.5
+BuildRequires:  java-rpmbuild >= 0:1.5
 BuildRequires:  junit
 %if %{gcj_support}
 BuildRequires:  java-gcj-compat-devel
