@@ -31,6 +31,7 @@ BuildRequires:  java-gcj-compat-devel
 BuildArch:      noarch
 %endif
 BuildRequires:  log4j
+BuildRoot:       %{_tmppath}/%{name}-%{version}-%{release}-root
 
 %description
 The Avalon framework consists of interfaces that define relationships
