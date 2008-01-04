@@ -6,7 +6,7 @@
 
 Name:           avalon-%{short_name}
 Version:        4.2.0
-Release:        %mkrel 1.4
+Release:        %mkrel 1.4.0
 Epoch:          0
 Summary:        Java components interfaces
 License:        Apache License
@@ -60,27 +60,7 @@ Javadoc for %{name}.
 %prep
 %setup -q -n %{name}
 %{__cp} -a %{SOURCE1} build.xml
-# remove all binary libs
-%{_bindir}/find . -name "*.jar" | %{_bindir}/xargs -t %{__rm} -f
-
-%build
-%if !%{bootstrap}
-export CLASSPATH=$(build-classpath avalon-logkit junit log4j)
-%else
-export CLASSPATH=$(build-classpath junit log4j)
-%endif
-export OPT_JAR_LIST="ant/ant-junit junit"
-%ant -Djava.javadoc=%{_javadocdir}/java jar doc test-all
-
-%install
-%{__rm} -rf %{buildroot}
-
-install -d -m 755 $RPM_BUILD_ROOT%{_javadir}
-install -d -m 755 $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version}
-install -m 644 dist/%{name}.jar $RPM_BUILD_ROOT%{_javadir}/%{name}-%{version}.jar
-cp -pr doc/api/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version}
-# create unversioned symlinks
-(cd $RPM_BUILD_ROOT%{_javadir} && for jar in *-%{version}*; do ln -sf ${jar} ${jar/-%{version}/}; done)
+%{__perl} -pi -e 's/enum( |\.)/enum1\1/g' api/src/java/org/apache/avalon/framework/Enum.java
 
 # fix end-of-line
 %{__perl} -pi -e 's/\r$//g' LICENSE.txt NOTICE.TXT
@@ -88,6 +68,26 @@ cp -pr doc/api/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version}
 for i in `find docs -type f`; do
     %{__perl} -pi -e 's/\r$//g' $i
 done
+
+%build
+%if !%{bootstrap}
+export CLASSPATH=$(build-classpath avalon-logkit junit log4j)
+%else
+export CLASSPATH=$(build-classpath junit log4j)
+%endif
+export OPT_JAR_LIST="`%{__cat} %{_sysconfdir}/ant.d/junit`"
+%{ant} -Djava.javadoc=%{_javadocdir}/java jar doc test-all
+
+%install
+%{__rm} -rf %{buildroot}
+
+install -d -m 755 $RPM_BUILD_ROOT%{_javadir}
+install -d -m 755 $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version}
+install -m 644 dist/%{name}.jar $RPM_BUILD_ROOT%{_javadir}/%{name}-%{version}.jar
+# create unversioned symlinks
+(cd $RPM_BUILD_ROOT%{_javadir} && for jar in *-%{version}*; do ln -sf ${jar} ${jar/-%{version}/}; done)
+cp -pr doc/api/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version}
+%{__ln_s} %{name}-%{version} $RPM_BUILD_ROOT%{_javadocdir}/%{name}
 
 for i in `find $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version} -type f -name "*.html" -o -name "*.css"`; do
     %{__perl} -pi -e 's/\r$//g' $i
@@ -108,15 +108,6 @@ rm -rf $RPM_BUILD_ROOT
 %{clean_gcjdb}
 %endif
 
-%post javadoc
-rm -f %{_javadocdir}/%{name}
-ln -s %{name}-%{version} %{_javadocdir}/%{name}
-
-%postun javadoc
-if [ "$1" = "0" ]; then
-    rm -f %{_javadocdir}/%{name}
-fi
-
 %files
 %defattr(0644,root,root,0755)
 %doc LICENSE.txt NOTICE.TXT
@@ -135,5 +126,5 @@ fi
 %files javadoc
 %defattr(0644,root,root,0755)
 %{_javadocdir}/%{name}-%{version}
-
+%{_javadocdir}/%{name}
 
