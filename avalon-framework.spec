@@ -6,7 +6,7 @@
 
 Name:           avalon-%{short_name}
 Version:        4.2.0
-Release:        %mkrel 1.4.1
+Release:        %mkrel 1.4.2
 Epoch:          0
 Summary:        Java components interfaces
 License:        Apache License
