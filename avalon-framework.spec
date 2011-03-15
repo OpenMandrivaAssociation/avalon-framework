@@ -5,8 +5,8 @@
 %define gcj_support     1
 
 Name:           avalon-%{short_name}
-Version:        4.2.0
-Release:        %mkrel 1.4.3
+Version:        4.3
+Release:        %mkrel 1
 Epoch:          0
 Summary:        Java components interfaces
 License:        Apache License
