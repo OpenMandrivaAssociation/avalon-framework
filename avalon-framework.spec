@@ -1,37 +1,77 @@
-%define short_name      framework
-%define short_Name      Avalon
-%define section         free
-%define bootstrap       0
-%define gcj_support     1
+# Copyright (c) 2000-2007, JPackage Project
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the
+#    distribution.
+# 3. Neither the name of the JPackage Project nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
 
-Name:           avalon-%{short_name}
-Version:        4.3
-Release:        %mkrel 1
-Epoch:          0
-Summary:        Java components interfaces
-License:        Apache License
-Url:            http://avalon.apache.org/%{short_name}/
-Group:          Development/Java
-#Vendor:        JPackage Project
-#Distribution:  JPackage
-Source0:        http://www.apache.org/dist/excalibur/excalibur-framework/source/avalon-framework-4.2.0-src.tar.bz2
-Source1:        %{name}-build.xml
-Requires:       log4j
-BuildRequires:  ant
-BuildRequires:  ant-junit
-%if !%{bootstrap}
-BuildRequires:  avalon-logkit
-%endif
-BuildRequires:  java-javadoc
-BuildRequires:  java-rpmbuild >= 0:1.5
-BuildRequires:  junit
-%if %{gcj_support}
-BuildRequires:  java-gcj-compat-devel
-%else
-BuildArch:      noarch
-%endif
-BuildRequires:  log4j
-BuildRoot:       %{_tmppath}/%{name}-%{version}-%{release}-root
+%global short_name    framework
+%global short_Name    Avalon
+
+Name:        avalon-%{short_name}
+Version:     4.3
+Release:     3
+Summary:     Java components interfaces
+License:     ASL 2.0
+URL:         http://avalon.apache.org/%{short_name}/
+Group:       Development/Java
+Source0:     http://archive.apache.org/dist/excalibur/avalon-framework/source/%{name}-api-%{version}-src.tar.gz
+Source1:     http://archive.apache.org/dist/excalibur/avalon-framework/source/%{name}-impl-%{version}-src.tar.gz
+
+# pom files are not provided in tarballs so get them from external site
+Source2:     http://repo1.maven.org/maven2/avalon-framework/%{name}-api/%{version}/%{name}-api-%{version}.pom
+Source3:     http://repo1.maven.org/maven2/avalon-framework/%{name}-impl/%{version}/%{name}-impl-%{version}.pom
+
+# remove jmock from dependencies because we don't have it
+Patch0:     %{name}-impl-pom.patch
+
+Requires:    apache-commons-logging
+Requires:    avalon-logkit
+Requires:    log4j
+Requires:    xalan-j2
+Requires:    xml-commons-apis
+
+Requires(post):    jpackage-utils
+Requires(postun):  jpackage-utils
+
+BuildRequires:    ant
+BuildRequires:	  ant-junit
+BuildRequires:	  apache-commons-logging
+BuildRequires:    avalon-logkit
+BuildRequires:    jpackage-utils
+# For converting jar into OSGi bundle
+BuildRequires:    aqute-bndlib
+BuildRequires:    junit
+BuildRequires:	  log4j
+BuildRequires:    xml-commons-apis
+
+
+BuildArch:    	  noarch
+
+Obsoletes:    %{name}-manual <= 0:4.1.4
 
 %description
 The Avalon framework consists of interfaces that define relationships
@@ -40,91 +80,93 @@ enforcements, and several lightweight convenience implementations of the
 generic components.
 What that means is that we define the central interface Component. We
 also define the relationship (contract) a component has with peers,
-ancestors and children. This documentation introduces you to those
-patterns, interfaces and relationships.
-
-%package manual
-Summary:        Manual for %{name}
-Group:          Development/Java
-
-%description manual
-Documentation for %{name}.
+ancestors and children.
 
 %package javadoc
-Summary:        Javadoc for %{name}
-Group:          Development/Java
+Summary:      API documentation %{name}
+Group:        Development/Java
+Requires:     jpackage-utils
 
 %description javadoc
-Javadoc for %{name}.
+%{summary}.
 
 %prep
-%setup -q -n %{name}
-%{__cp} -a %{SOURCE1} build.xml
-%{__perl} -pi -e 's/enum( |\.)/enum1\1/g' api/src/java/org/apache/avalon/framework/Enum.java
+%setup -q -n %{name}-api-%{version}
+tar xvf %{SOURCE1}
 
-# fix end-of-line
-%{__perl} -pi -e 's/\r$//g' LICENSE.txt NOTICE.TXT
+cp %{SOURCE2} .
 
-for i in `find docs -type f`; do
-    %{__perl} -pi -e 's/\r$//g' $i
-done
+pushd %{name}-impl-%{version}/
+cp %{SOURCE3} .
+%patch0
+popd
 
 %build
-%if !%{bootstrap}
-export CLASSPATH=$(build-classpath avalon-logkit junit log4j)
-%else
-export CLASSPATH=$(build-classpath junit log4j)
-%endif
-export OPT_JAR_LIST="`%{__cat} %{_sysconfdir}/ant.d/junit`"
-%{ant} -Djava.javadoc=%{_javadocdir}/java jar doc test-all
+export CLASSPATH=%(build-classpath avalon-logkit junit commons-logging log4j)
+export CLASSPATH="$CLASSPATH:../target/%{name}-api-%{version}.jar"
+ant jar test javadoc
+# Convert to OSGi bundle
+java -jar %{_javadir}/aqute-bndlib.jar wrap target/%{name}-api-%{version}.jar
+
+# build implementation now
+pushd %{name}-impl-%{version}
+# tests removed because we don't have jmock
+rm -rf src/test/*
+ant jar javadoc
+# Convert to OSGi bundle
+java -jar %{_javadir}/aqute-bndlib.jar wrap target/%{name}-impl-%{version}.jar
+popd
 
 %install
-%{__rm} -rf %{buildroot}
+install -d -m 755 $RPM_BUILD_ROOT%{_javadir}/
+install -d -m 755 $RPM_BUILD_ROOT/%{_mavenpomdir}
 
-install -d -m 755 $RPM_BUILD_ROOT%{_javadir}
-install -d -m 755 $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version}
-install -m 644 dist/%{name}.jar $RPM_BUILD_ROOT%{_javadir}/%{name}-%{version}.jar
-# create unversioned symlinks
-(cd $RPM_BUILD_ROOT%{_javadir} && for jar in *-%{version}*; do ln -sf ${jar} ${jar/-%{version}/}; done)
-cp -pr doc/api/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version}
-%{__ln_s} %{name}-%{version} $RPM_BUILD_ROOT%{_javadocdir}/%{name}
+install -m 644 target/%{name}-api-%{version}.bar $RPM_BUILD_ROOT%{_javadir}/%{name}-api.jar
+mkdir -p $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-api
 
-for i in `find $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version} -type f -name "*.html" -o -name "*.css"`; do
-    %{__perl} -pi -e 's/\r$//g' $i
-done
+# pom file
+install -pm 644 %{name}-api-%{version}.pom $RPM_BUILD_ROOT/%{_mavenpomdir}/JPP-%{name}-api.pom
+%add_to_maven_depmap %{name} %{name}-api %{version} JPP %{name}-api
+%add_to_maven_depmap org.apache.avalon.framework %{name}-api %{version} JPP %{name}-api
 
-%if %{gcj_support}
-%{_bindir}/aot-compile-rpm
-%endif
+# javadocs
+cp -pr dist/docs/api/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-api/
 
-%clean
-rm -rf $RPM_BUILD_ROOT
 
-%if %{gcj_support}
+pushd %{name}-impl-%{version}
+install -m 644 target/%{name}-impl-%{version}.bar $RPM_BUILD_ROOT%{_javadir}/%{name}-impl.jar
+ln -sf %{_javadir}/%{name}-impl.jar ${RPM_BUILD_ROOT}%{_javadir}/%{name}.jar
+
+# pom file
+install -pm 644 %{name}-impl-%{version}.pom $RPM_BUILD_ROOT/%{_mavenpomdir}/JPP-%{name}-impl.pom
+%add_to_maven_depmap %{name} %{name}-impl %{version} JPP %{name}-impl
+%add_to_maven_depmap org.apache.avalon.framework %{name}-impl %{version} JPP %{name}-impl
+%add_to_maven_depmap %{name} %{name} %{version} JPP %{name}-impl
+
+# javadocs
+mkdir -p $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-impl
+cp -pr dist/docs/api/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-impl/
+popd
+
 %post
-%{update_gcjdb}
+%update_maven_depmap
 
 %postun
-%{clean_gcjdb}
-%endif
+%update_maven_depmap
+
 
 %files
-%defattr(0644,root,root,0755)
-%doc LICENSE.txt NOTICE.TXT
-%{_javadir}/*.jar
-%if %{gcj_support}
-%dir %{_libdir}/gcj/%{name}
-%attr(-,root,root) %{_libdir}/gcj/%{name}/*
-%endif
-
-%files manual
-%defattr(0644,root,root,0755)
-%if 0
-%doc docs/*
-%endif
+%defattr(-,root,root,-)
+%doc LICENSE.txt NOTICE.txt
+%{_mavenpomdir}/JPP-%{name}-api.pom
+%{_mavenpomdir}/JPP-%{name}-impl.pom
+%{_javadir}/%{name}-api.jar
+%{_javadir}/%{name}-impl.jar
+%{_javadir}/%{name}.jar
+%{_mavendepmapfragdir}/%{name}
 
 %files javadoc
-%defattr(0644,root,root,0755)
-%{_javadocdir}/%{name}-%{version}
+%defattr(-,root,root,-)
+%doc LICENSE.txt NOTICE.txt
 %{_javadocdir}/%{name}
 
