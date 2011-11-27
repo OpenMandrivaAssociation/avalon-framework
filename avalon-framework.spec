@@ -33,7 +33,7 @@
 
 Name:        avalon-%{short_name}
 Version:     4.3
-Release:     3
+Release:     5
 Summary:     Java components interfaces
 License:     ASL 2.0
 URL:         http://avalon.apache.org/%{short_name}/
