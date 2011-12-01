@@ -118,34 +118,34 @@ java -jar %{_javadir}/aqute-bndlib.jar wrap target/%{name}-impl-%{version}.jar
 popd
 
 %install
-install -d -m 755 $RPM_BUILD_ROOT%{_javadir}/
-install -d -m 755 $RPM_BUILD_ROOT/%{_mavenpomdir}
+install -d -m 755 %{buildroot}%{_javadir}/
+install -d -m 755 %{buildroot}/%{_mavenpomdir}
 
-install -m 644 target/%{name}-api-%{version}.bar $RPM_BUILD_ROOT%{_javadir}/%{name}-api.jar
-mkdir -p $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-api
+install -m 644 target/%{name}-api-%{version}.bar %{buildroot}%{_javadir}/%{name}-api.jar
+mkdir -p %{buildroot}%{_javadocdir}/%{name}/%{name}-api
 
 # pom file
-install -pm 644 %{name}-api-%{version}.pom $RPM_BUILD_ROOT/%{_mavenpomdir}/JPP-%{name}-api.pom
+install -pm 644 %{name}-api-%{version}.pom %{buildroot}/%{_mavenpomdir}/JPP-%{name}-api.pom
 %add_to_maven_depmap %{name} %{name}-api %{version} JPP %{name}-api
 %add_to_maven_depmap org.apache.avalon.framework %{name}-api %{version} JPP %{name}-api
 
 # javadocs
-cp -pr dist/docs/api/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-api/
+cp -pr dist/docs/api/* %{buildroot}%{_javadocdir}/%{name}/%{name}-api/
 
 
 pushd %{name}-impl-%{version}
-install -m 644 target/%{name}-impl-%{version}.bar $RPM_BUILD_ROOT%{_javadir}/%{name}-impl.jar
-ln -sf %{_javadir}/%{name}-impl.jar ${RPM_BUILD_ROOT}%{_javadir}/%{name}.jar
+install -m 644 target/%{name}-impl-%{version}.bar %{buildroot}%{_javadir}/%{name}-impl.jar
+ln -sf %{_javadir}/%{name}-impl.jar %{buildroot}%{_javadir}/%{name}.jar
 
 # pom file
-install -pm 644 %{name}-impl-%{version}.pom $RPM_BUILD_ROOT/%{_mavenpomdir}/JPP-%{name}-impl.pom
+install -pm 644 %{name}-impl-%{version}.pom %{buildroot}/%{_mavenpomdir}/JPP-%{name}-impl.pom
 %add_to_maven_depmap %{name} %{name}-impl %{version} JPP %{name}-impl
 %add_to_maven_depmap org.apache.avalon.framework %{name}-impl %{version} JPP %{name}-impl
 %add_to_maven_depmap %{name} %{name} %{version} JPP %{name}-impl
 
 # javadocs
-mkdir -p $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-impl
-cp -pr dist/docs/api/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-impl/
+mkdir -p %{buildroot}%{_javadocdir}/%{name}/%{name}-impl
+cp -pr dist/docs/api/* %{buildroot}%{_javadocdir}/%{name}/%{name}-impl/
 popd
 
 %post
