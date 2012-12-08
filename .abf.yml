@@ -1,5 +1,2 @@
 sources:
-  "avalon-framework-api-4.3.pom:"	48e39330e023119714f6ac2b10a90520a56cc75e
-  "avalon-framework-api-4.3-src.tar.gz:"	1ef0f79e0b094d09d8cac038dbb2ecde8422265b
-  "avalon-framework-impl-4.3.pom:"	284eaf793b470e4cafbf6f1d19f9896abb1e74ed
-  "avalon-framework-impl-4.3-src.tar.gz:"	9bbdea5cb5f9d4749ded307392d9072909e3fcaa
+  "avalon-framework-4.2.0-src.tar.bz2": a07a9a3ea71a0a118317ff373e9215c07b280c41
