@@ -1,7 +1,7 @@
 %define short_name      framework
 %define short_Name      Avalon
 %define section         free
-%define bootstrap       0
+%define bootstrap       1
 %define gcj_support     1
 
 Name:           avalon-%{short_name}
