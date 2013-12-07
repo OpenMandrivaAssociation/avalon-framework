@@ -6,7 +6,7 @@
 
 Name:           avalon-%{short_name}
 Version:        4.3
-Release:        4
+Release:        5
 Epoch:          0
 Summary:        Java components interfaces
 License:        Apache License
