@@ -1,37 +1,75 @@
-%define short_name      framework
-%define short_Name      Avalon
-%define section         free
-%define bootstrap       1
-%define gcj_support     1
+%{?_javapackages_macros:%_javapackages_macros}
+# Copyright (c) 2000-2007, JPackage Project
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the
+#    distribution.
+# 3. Neither the name of the JPackage Project nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
 
-Name:           avalon-%{short_name}
-Version:        4.3
-Release:        6
-Epoch:          0
-Summary:        Java components interfaces
-License:        Apache License
-Url:            http://avalon.apache.org/%{short_name}/
-Group:          Development/Java
-#Vendor:        JPackage Project
-#Distribution:  JPackage
-Source0:        http://www.apache.org/dist/excalibur/excalibur-framework/source/avalon-framework-4.2.0-src.tar.bz2
-Source1:        %{name}-build.xml
-Requires:       log4j
-BuildRequires:  ant
-BuildRequires:  ant-junit
-%if !%{bootstrap}
-BuildRequires:  avalon-logkit
-%endif
-BuildRequires:  java-javadoc
-BuildRequires:  java-rpmbuild >= 0:1.5
-BuildRequires:  junit
-%if %{gcj_support}
-BuildRequires:  java-gcj-compat-devel
-%else
-BuildArch:      noarch
-%endif
-BuildRequires:  log4j
-BuildRoot:       %{_tmppath}/%{name}-%{version}-%{release}-root
+%global short_name    framework
+%global short_Name    Avalon
+
+Name:        avalon-%{short_name}
+Version:     4.3
+Release:     9.1%{?dist}
+Epoch:       0
+Summary:     Java components interfaces
+License:     ASL 2.0
+URL:         http://avalon.apache.org/%{short_name}/
+
+Source0:     http://archive.apache.org/dist/excalibur/avalon-framework/source/%{name}-api-%{version}-src.tar.gz
+Source1:     http://archive.apache.org/dist/excalibur/avalon-framework/source/%{name}-impl-%{version}-src.tar.gz
+
+# pom files are not provided in tarballs so get them from external site
+Source2:     http://repo1.maven.org/maven2/avalon-framework/%{name}-api/%{version}/%{name}-api-%{version}.pom
+Source3:     http://repo1.maven.org/maven2/avalon-framework/%{name}-impl/%{version}/%{name}-impl-%{version}.pom
+
+# remove jmock from dependencies because we don't have it
+Patch0:     %{name}-impl-pom.patch
+Patch1:     %{name}-xerces.patch
+
+Requires:    apache-commons-logging
+Requires:    avalon-logkit
+Requires:    log4j
+Requires:    xalan-j2
+
+BuildRequires:    ant
+BuildRequires:	  ant-junit
+BuildRequires:	  apache-commons-logging
+BuildRequires:    avalon-logkit
+BuildRequires:    jpackage-utils
+# For converting jar into OSGi bundle
+BuildRequires:    aqute-bnd
+BuildRequires:    junit
+BuildRequires:	  log4j
+
+
+BuildArch:    	  noarch
+
+Obsoletes:    %{name}-manual <= 0:4.1.4
 
 %description
 The Avalon framework consists of interfaces that define relationships
@@ -40,170 +78,222 @@ enforcements, and several lightweight convenience implementations of the
 generic components.
 What that means is that we define the central interface Component. We
 also define the relationship (contract) a component has with peers,
-ancestors and children. This documentation introduces you to those
-patterns, interfaces and relationships.
-
-%package manual
-Summary:        Manual for %{name}
-Group:          Development/Java
-
-%description manual
-Documentation for %{name}.
+ancestors and children.
 
 %package javadoc
-Summary:        Javadoc for %{name}
-Group:          Development/Java
+Summary:      API documentation %{name}
+
+Requires:     jpackage-utils
 
 %description javadoc
-Javadoc for %{name}.
+%{summary}.
 
 %prep
-%setup -q -n %{name}
-%{__cp} -a %{SOURCE1} build.xml
-%{__perl} -pi -e 's/enum( |\.)/enum1\1/g' api/src/java/org/apache/avalon/framework/Enum.java
+%setup -q -n %{name}-api-%{version}
+tar xvf %{SOURCE1}
 
-# fix end-of-line
-%{__perl} -pi -e 's/\r$//g' LICENSE.txt NOTICE.TXT
+cp %{SOURCE2} .
 
-for i in `find docs -type f`; do
-    %{__perl} -pi -e 's/\r$//g' $i
-done
+pushd %{name}-impl-%{version}/
+cp %{SOURCE3} .
+%patch0
+%patch1 -p2
+popd
 
 %build
-%if !%{bootstrap}
-export CLASSPATH=$(build-classpath avalon-logkit junit log4j)
-%else
-export CLASSPATH=$(build-classpath junit log4j)
-%endif
-export OPT_JAR_LIST="`%{__cat} %{_sysconfdir}/ant.d/junit`"
-%{ant} -Djava.javadoc=%{_javadocdir}/java jar doc test-all
+export CLASSPATH=%(build-classpath avalon-logkit junit commons-logging log4j)
+export CLASSPATH="$CLASSPATH:../target/%{name}-api-%{version}.jar"
+ant jar test javadoc
+# Convert to OSGi bundle
+java -jar $(build-classpath aqute-bnd) wrap target/%{name}-api-%{version}.jar
+
+# build implementation now
+pushd %{name}-impl-%{version}
+# tests removed because we don't have jmock
+rm -rf src/test/*
+ant jar javadoc
+# Convert to OSGi bundle
+java -jar $(build-classpath aqute-bnd) wrap target/%{name}-impl-%{version}.jar
+popd
 
 %install
-%{__rm} -rf %{buildroot}
+install -d -m 755 $RPM_BUILD_ROOT%{_javadir}/
+install -d -m 755 $RPM_BUILD_ROOT/%{_mavenpomdir}
 
-install -d -m 755 $RPM_BUILD_ROOT%{_javadir}
-install -d -m 755 $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version}
-install -m 644 dist/%{name}.jar $RPM_BUILD_ROOT%{_javadir}/%{name}-%{version}.jar
-# create unversioned symlinks
-(cd $RPM_BUILD_ROOT%{_javadir} && for jar in *-%{version}*; do ln -sf ${jar} ${jar/-%{version}/}; done)
-cp -pr doc/api/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version}
-%{__ln_s} %{name}-%{version} $RPM_BUILD_ROOT%{_javadocdir}/%{name}
+install -m 644 target/%{name}-api-%{version}.bar $RPM_BUILD_ROOT%{_javadir}/%{name}-api.jar
+mkdir -p $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-api
 
-for i in `find $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version} -type f -name "*.html" -o -name "*.css"`; do
-    %{__perl} -pi -e 's/\r$//g' $i
-done
+# pom file
+install -pm 644 %{name}-api-%{version}.pom $RPM_BUILD_ROOT/%{_mavenpomdir}/JPP-%{name}-api.pom
+%add_maven_depmap JPP-%{name}-api.pom %{name}-api.jar -a "org.apache.avalon.framework:%{name}-api"
 
-%if %{gcj_support}
-%{_bindir}/aot-compile-rpm
-%endif
+# javadocs
+cp -pr dist/docs/api/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-api/
 
-%clean
-rm -rf $RPM_BUILD_ROOT
 
-%if %{gcj_support}
-%post
-%{update_gcjdb}
+pushd %{name}-impl-%{version}
+install -m 644 target/%{name}-impl-%{version}.bar $RPM_BUILD_ROOT%{_javadir}/%{name}-impl.jar
+ln -sf %{_javadir}/%{name}-impl.jar ${RPM_BUILD_ROOT}%{_javadir}/%{name}.jar
 
-%postun
-%{clean_gcjdb}
-%endif
+# pom file
+install -pm 644 %{name}-impl-%{version}.pom $RPM_BUILD_ROOT/%{_mavenpomdir}/JPP-%{name}-impl.pom
+%add_maven_depmap JPP-%{name}-impl.pom %{name}-impl.jar -a "org.apache.avalon.framework:%{name}-impl,%{name}:%{name}"
+
+# javadocs
+mkdir -p $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-impl
+cp -pr dist/docs/api/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-impl/
+popd
+
 
 %files
-%defattr(0644,root,root,0755)
-%doc LICENSE.txt NOTICE.TXT
-%{_javadir}/*.jar
-%if %{gcj_support}
-%dir %{_libdir}/gcj/%{name}
-%attr(-,root,root) %{_libdir}/gcj/%{name}/*
-%endif
-
-%files manual
-%defattr(0644,root,root,0755)
-%if 0
-%doc docs/*
-%endif
+%doc LICENSE.txt NOTICE.txt
+%{_mavenpomdir}/JPP-%{name}-api.pom
+%{_mavenpomdir}/JPP-%{name}-impl.pom
+%{_javadir}/%{name}-api.jar
+%{_javadir}/%{name}-impl.jar
+%{_javadir}/%{name}.jar
+%{_mavendepmapfragdir}/%{name}
 
 %files javadoc
-%defattr(0644,root,root,0755)
-%{_javadocdir}/%{name}-%{version}
+%doc LICENSE.txt NOTICE.txt
 %{_javadocdir}/%{name}
 
-
-
 %changelog
-* Tue Mar 15 2011 Stéphane Téletchéa <steletch@mandriva.org> 0:4.3-1mdv2011.0
-+ Revision: 645024
-- update to new version 4.3
+* Sat Aug 03 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:4.3-9
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_20_Mass_Rebuild
 
-* Tue Nov 30 2010 Oden Eriksson <oeriksson@mandriva.com> 0:4.2.0-1.4.3mdv2011.0
-+ Revision: 603485
-- rebuild
+* Wed Feb 13 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:4.3-8
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
 
-* Tue Mar 16 2010 Oden Eriksson <oeriksson@mandriva.com> 0:4.2.0-1.4.2mdv2010.1
-+ Revision: 522113
-- rebuilt for 2010.1
+* Wed Jul 18 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:4.3-7
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
 
-* Sun Aug 09 2009 Oden Eriksson <oeriksson@mandriva.com> 0:4.2.0-1.4.1mdv2010.0
-+ Revision: 413151
-- rebuild
+* Wed Jun 06 2012 Tomas Radej <tradej@redhat.com> - 0:4.3-6
+- Fixed xerces dep
 
-* Fri Jan 04 2008 David Walluck <walluck@mandriva.org> 0:4.2.0-1.4.0mdv2008.1
-+ Revision: 145502
-- fix build
+* Fri Apr 6 2012 Alexander Kurtakov <akurtako@redhat.com> 0:4.3-5
+- Remove unneeded BR/R.
 
-  + Olivier Blin <oblin@mandriva.com>
-    - restore BuildRoot
+* Thu Jan 12 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:4.3-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_17_Mass_Rebuild
 
-  + Thierry Vignaud <tv@mandriva.org>
-    - kill re-definition of %%buildroot on Pixel's request
+* Tue Oct 18 2011 Stanislav Ochotnicky <sochotnicky@redhat.com> - 0:4.3-3
+- aqute-bndlib renamed to aqute-bnd (#745163)
+- Use new maven macros
+- Packaging tweaks
 
-  + Anssi Hannula <anssi@mandriva.org>
-    - buildrequire java-rpmbuild, i.e. build with icedtea on x86(_64)
-    - remove unnecessary Requires(post) on java-gcj-compat
+* Tue May 3 2011 Severin Gehwolf <sgehwolf@redhat.com> 0:4.3-3
+- Convert jar's to OSGi bundles using aqute-bndlib.
 
+* Tue May  3 2011 Stanislav Ochotnicky <sochotnicky@redhat.com> - 0:4.3-2
+- Add compatibility depmap for org.apache.avalon.framework groupId
 
-* Wed Dec 13 2006 David Walluck <walluck@mandriva.org> 4.2.0-1.2mdv2007.0
-+ Revision: 96200
-- update Source URL
-- update
+* Wed Apr 20 2011 Stanislav Ochotnicky <sochotnicky@redhat.com> - 0:4.3-1
+- Latest version
+- Split into two jars, provide backward compatible symlink
+- Cleanups according to new guidelines
 
-* Tue Dec 12 2006 David Walluck <walluck@mandriva.org> 0:4.2.0-1.1mdv2007.1
-+ Revision: 95176
-- Import avalon-framework
+* Mon Feb 07 2011 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:4.1.4-8
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_15_Mass_Rebuild
 
-* Tue Sep 05 2006 David Walluck <walluck@mandriva.org> 0:4.2.0-1.1mdv2007.0
-- add missing (Build)Requires: log4j
+* Wed Dec 29 2010 Alexander Kurtakov <akurtako@redhat.com> 0:4.1.4-7
+- Drop gcj.
+- Use global.
+- No versioned jars.
+- Fix permissions.
 
-* Fri Sep 01 2006 David Walluck <walluck@mandriva.org> 0:4.2.0-1mdv2007.0
-- 4.2.0
-- empty manual package
-- use $ instead of %% for build-classpath
-- set OPT_JAR_LIST for tests
-- clean %%{buildroot} in %%install
+* Fri Jul 24 2009 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:4.1.4-6
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_12_Mass_Rebuild
 
-* Mon Jun 12 2006 David Walluck <walluck@mandriva.org> 0:4.1.4-2.3mdv2007.0
-- rebuild for libgcj.so.7
-- aot compile
-- fix build
+* Mon Feb 23 2009 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0:4.1.4-5
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_11_Mass_Rebuild
 
-* Sat May 14 2005 David Walluck <walluck@mandriva.org> 0:4.1.4-2.2mdk
-- rebuild as non-bootstrap
+* Wed Jul  9 2008 Tom "spot" Callaway <tcallawa@redhat.com> - 0:4.1.4-4
+- drop repotag
+- fix license tag
 
-* Fri May 13 2005 David Walluck <walluck@mandriva.org> 0:4.1.4-2.1mdk
-- release
+* Tue Feb 19 2008 Fedora Release Engineering <rel-eng@fedoraproject.org> - 0:4.1.4-3jpp.14
+- Autorebuild for GCC 4.3
 
-* Thu Nov 04 2004 Gary Benson <gbenson@redhat.com> 0:4.1.4-2jpp_5fc
+* Thu Mar 08 2007 Permaine Cheung <pcheung at redhat.com> - 0:4.1.4-2jpp.14
+- rpmlint cleanup.
+
+* Thu Aug 10 2006 Matt Wringe <mwringe at redhat.com> - 0:4.1.4-2jpp.13
+- Add missing javadoc requires
+
+* Sat Jul 22 2006 Jakub Jelinek <jakub@redhat.com> - 0:4.1.4-2jpp_12fc
+- Rebuilt
+
+* Wed Jul 19 2006 Matt Wringe <mwringe at redhat.com> - 0:4.1.4-2jpp_11fc
+- Removed separate definition of name, version and release.
+
+* Wed Jul 19 2006 Matt Wringe <mwringe at redhat.com> - 0:4.1.4-2jpp_10fc
+- Added conditional native compling.
+
+* Thu Jun  8 2006 Deepak Bhole <dbhole@redhat.com> - 0:4.1.4-2jpp_9fc
+- Updated description for fix to Bug# 170999
+
+* Mon Mar  6 2006 Jeremy Katz <katzj@redhat.com> - 0:4.1.4-2jpp_8fc
+- stop scriptlet spew
+
+* Wed Dec 21 2005 Gary Benson <gbenson@redhat.com> 0:4.1.4-2jpp_7fc
+- Rebuild again
+
+* Thu Dec 15 2005 Gary Benson <gbenson@redhat.com> 0:4.1.4-2jpp_6fc
+- Rebuild for new gcj.
+
+* Thu Nov  4 2004 Gary Benson <gbenson@redhat.com> 0:4.1.4-2jpp_5fc
 - Build into Fedora.
 
-* Fri Oct 29 2004 Gary Benson <gbenson@redhat.com> 0:4.1.4-2jpp_4fc
+* Thu Oct 28 2004 Gary Benson <gbenson@redhat.com> 0:4.1.4-2jpp_4fc
 - Bootstrap into Fedora.
 
-* Fri Oct 01 2004 Andrew Overholt <overholt@redhat.com> 0:4.1.4-2jpp_3rh
-- Remove avalan-logkit as a Requires
+* Thu Sep 30 2004 Andrew Overholt <overholt@redhat.com> 0:4.1.4-2jpp_3rh
+- Remove avalon-logkit as a Requires
 
-* Mon Mar 08 2004 Frank Ch. Eigler <fche@redhat.com> 0:4.1.4-2jpp_2rh
+* Mon Mar  8 2004 Frank Ch. Eigler <fche@redhat.com> 0:4.1.4-2jpp_2rh
 - RH vacuuming part II
 
-* Fri Mar 05 2004 Frank Ch. Eigler <fche@redhat.com> 0:4.1.4-2jpp_1rh
+* Fri Mar  5 2004 Frank Ch. Eigler <fche@redhat.com> 0:4.1.4-2jpp_1rh
 - RH vacuuming
 
+* Fri May 09 2003 David Walluck <david@anti-microsoft.org> 0:4.1.4-2jpp
+- update for JPackage 1.5
+
+* Fri Mar 21 2003 Nicolas Mailhot <Nicolas.Mailhot (at) JPackage.org> 4.1.4-1jpp
+- For jpackage-utils 1.5
+- Forrest is not used right now
+
+* Tue May 07 2002 Guillaume Rousse <guillomovitch@users.sourceforge.net> 4.1.2-3jpp
+- hardcoded distribution and vendor tag
+- group tag again
+
+* Thu May 2 2002 Guillaume Rousse <guillomovitch@users.sourceforge.net> 4.1.2-2jpp
+- distribution tag
+- group tag
+
+* Sun Feb 03 2002 Guillaume Rousse <guillomovitch@users.sourceforge.net> 4.1.2-1jpp
+- 4.1.2
+- section macro
+
+* Thu Jan 17 2002 Guillaume Rousse <guillomovitch@users.sourceforge.net> 4.1-2jpp
+- versioned dir for javadoc
+- no dependencies for manual and javadoc packages
+- requires xml-commons-apis
+
+* Wed Dec 12 2001 Guillaume Rousse <guillomovitch@users.sourceforge.net> 4.1-1jpp
+- 4.1
+- Requires and BuildRequires xalan-j2
+
+* Wed Dec 5 2001 Guillaume Rousse <guillomovitch@users.sourceforge.net> 4.0-4jpp
+- javadoc into javadoc package
+
+* Wed Nov 21 2001 Christian Zoffoli <czoffoli@littlepenguin.org> 4.0-3jpp
+- changed extension --> jpp
+
+* Sat Oct 6 2001 Guillaume Rousse <guillomovitch@users.sourceforge.net> 4.0-2jpp
+- first unified release
+- used original tarball
+
+* Thu Sep 13 2001 Guillaume Rousse <guillomovitch@users.sourceforge.net> 4.0-1mdk
+- first Mandrake release
