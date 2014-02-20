@@ -1,2 +1,3 @@
 sources:
-  "avalon-framework-4.2.0-src.tar.bz2": a07a9a3ea71a0a118317ff373e9215c07b280c41
+  avalon-framework-api-4.3-src.tar.gz: 1ef0f79e0b094d09d8cac038dbb2ecde8422265b
+  avalon-framework-impl-4.3-src.tar.gz: 9bbdea5cb5f9d4749ded307392d9072909e3fcaa
