@@ -34,7 +34,8 @@
 
 Name:        avalon-%{short_name}
 Version:     4.3
-Release:     9.1%{?dist}
+Release:     11.1
+Group:		Development/Java
 Epoch:       0
 Summary:     Java components interfaces
 License:     ASL 2.0
@@ -130,29 +131,20 @@ install -pm 644 %{name}-api-%{version}.pom $RPM_BUILD_ROOT/%{_mavenpomdir}/JPP-%
 # javadocs
 cp -pr dist/docs/api/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-api/
 
-
-pushd %{name}-impl-%{version}
-install -m 644 target/%{name}-impl-%{version}.bar $RPM_BUILD_ROOT%{_javadir}/%{name}-impl.jar
+install -m 644 %{name}-impl-%{version}/target/%{name}-impl-%{version}.bar $RPM_BUILD_ROOT%{_javadir}/%{name}-impl.jar
 ln -sf %{_javadir}/%{name}-impl.jar ${RPM_BUILD_ROOT}%{_javadir}/%{name}.jar
 
 # pom file
-install -pm 644 %{name}-impl-%{version}.pom $RPM_BUILD_ROOT/%{_mavenpomdir}/JPP-%{name}-impl.pom
+install -pm 644 %{name}-impl-%{version}/%{name}-impl-%{version}.pom $RPM_BUILD_ROOT/%{_mavenpomdir}/JPP-%{name}-impl.pom
 %add_maven_depmap JPP-%{name}-impl.pom %{name}-impl.jar -a "org.apache.avalon.framework:%{name}-impl,%{name}:%{name}"
 
 # javadocs
 mkdir -p $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-impl
-cp -pr dist/docs/api/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-impl/
-popd
+cp -pr %{name}-impl-%{version}/dist/docs/api/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}/%{name}-impl/
 
-
-%files
+%files -f .mfiles
 %doc LICENSE.txt NOTICE.txt
-%{_mavenpomdir}/JPP-%{name}-api.pom
-%{_mavenpomdir}/JPP-%{name}-impl.pom
-%{_javadir}/%{name}-api.jar
-%{_javadir}/%{name}-impl.jar
 %{_javadir}/%{name}.jar
-%{_mavendepmapfragdir}/%{name}
 
 %files javadoc
 %doc LICENSE.txt NOTICE.txt
