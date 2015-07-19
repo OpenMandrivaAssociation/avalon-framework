@@ -34,7 +34,7 @@
 
 Name:        avalon-%{short_name}
 Version:     4.3
-Release:     11.1
+Release:     11.2
 Group:		Development/Java
 Epoch:       0
 Summary:     Java components interfaces
