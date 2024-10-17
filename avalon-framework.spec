@@ -39,7 +39,7 @@ Group:		Development/Java
 Epoch:       0
 Summary:     Java components interfaces
 License:     ASL 2.0
-URL:         http://avalon.apache.org/%{short_name}/
+URL:         https://avalon.apache.org/%{short_name}/
 
 Source0:     http://archive.apache.org/dist/excalibur/avalon-framework/source/%{name}-api-%{version}-src.tar.gz
 Source1:     http://archive.apache.org/dist/excalibur/avalon-framework/source/%{name}-impl-%{version}-src.tar.gz
